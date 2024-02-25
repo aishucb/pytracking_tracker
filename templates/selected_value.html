@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Selected Value Details</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <canvas id="myPieChart" width="400" height="400"></canvas>
+    <h1>Selected Value: {{ selected_value }}</h1>
+    <h2>Corresponding Users:</h2>
+    <ul>
+        {% for user in selected_users %}
+            <li>{{ user }}</li>
+        {% endfor %}
+    </ul>
+    {% for item in all_recips %}
+        {{ item }}
+    {% endfor %}
+
+<div id="flaskValues" data-selected-users-num="{{ selected_users_num }}" data-number-of-recips="{{ number_of_recips }}"></div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var flaskValuesElement = document.getElementById('flaskValues');
+        var selectedUsersNum = flaskValuesElement.dataset.selectedUsersNum;
+        var numberOfRecips = flaskValuesElement.dataset.numberOfRecips;
+
+        console.log('selectedUsersNum:', selectedUsersNum);
+        console.log('numberOfRecips:', numberOfRecips);
+
+        var data = {
+            labels: ['Number of Recipients', 'Remaining'],
+            datasets: [{
+                data: [selectedUsersNum, selectedUsersNum - numberOfRecips],
+                backgroundColor: ['#36a2eb', '#ff6384'],
+                hoverBackgroundColor: ['#36a2eb', '#ff6384']
+            }]
+        };
+
+        var ctx = document.getElementById('myPieChart').getContext('2d');
+        var myPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: data
+        });
+    });
+</script>
+</body>
+</html>
