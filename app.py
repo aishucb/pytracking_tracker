@@ -3,7 +3,9 @@ import base64
 import csv
 import os
 import json
+import re
 import ast
+from flask import redirect, url_for
 app = Flask(__name__)
 
 opens_counter = 0
@@ -20,16 +22,21 @@ os.makedirs(data_directory, exist_ok=True)
 
 
 def dashboard_csv(subject):
-    with open('data.csv') as cards:
-        csv_reader = csv.reader(cards)
-        list_of_recips=[]
-        for index, row in enumerate(csv_reader):
-            if row[0]== subject:
-                for i in range(int(row[1])):
-                    print(row[i+2])
-                    list_of_recips.append(row[i+2])
-        return(list_of_recips,row[1])
-
+    print("this is sub" + subject)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'data.csv')
+    with open(file_path, 'r') as f:
+        reader = csv.reader(f)
+        data = [row for row in reader]
+        list_of_recips = []
+        for index, row in enumerate(data):
+            print(repr(row[0].strip()))
+            print(repr(subject.strip()))
+            print(subject.strip() in row[0])
+            if re.match(f'^{re.escape(subject.strip().lower())}$', row[0].lower()):
+                for i in range(2, len(row)):
+                    print("hi" + row[0])
+                    list_of_recips.append(row[i])
+        return list_of_recips, row[1]
 
 def write_user_info_to_csv(decoded_data, file_path):
     # Creating data directory if it doesn't exist
@@ -142,24 +149,37 @@ def get_column_two_values():
 
 
 
-@app.route('/display_selected_value', methods=['POST'])
+@app.route('/display_selected_value', methods=['POST', 'GET'])
 def display_selected_value():
-    selected_value = request.form.get('selected_value')
-    all_recips,number_of_recips=dashboard_csv(selected_value)
+    selected_value = request.args.get('selected_value') if request.method == 'GET' else request.form.get('selected_value')
+    
+    print(f"Selected Value: {selected_value}")
+
+    if not selected_value:
+        return render_template('error_page.html', error_message="Selected value not found in the request parameters")
+
+    all_recips, number_of_recips = dashboard_csv(selected_value)
+
     # Assuming the CSV file has columns 'User' and 'Data'
     data_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
     file_path = os.path.join(data_directory, 'opens_data.csv')
 
     selected_users = []
 
-    with open(file_path, 'r') as file:
-        csv_reader = csv.DictReader(file)
-        for row in csv_reader:
-            if row['Data'] == selected_value:
-                selected_users.append(row['User'])
-    selected_users_num=len(selected_users)
+    try:
+        with open(file_path, 'r') as file:
+            csv_reader = csv.DictReader(file)
+            for row in csv_reader:
+                if row['Data'] == selected_value:
+                    selected_users.append(row['User'])
+    except Exception as e:
+        print(f"Error reading CSV file: {e}")
+        return render_template('error_page.html', error_message="Error reading CSV file")
+
+    selected_users_num = len(selected_users)
     print(selected_users_num)
-    return render_template('selected_value.html', selected_value=selected_value, selected_users=selected_users,all_recips=all_recips,selected_users_num=selected_users_num,number_of_recips=number_of_recips)
+
+    return render_template('selected_value.html', selected_value=selected_value, selected_users=selected_users, all_recips=all_recips, selected_users_num=selected_users_num, number_of_recips=number_of_recips)
 
 
 @app.route('/endpoint', methods=['POST'])
@@ -180,7 +200,7 @@ def receive_data():
         return f"Error: {str(e)}", 500
 
 def save_to_csv(subject, recipients):
-    file_path = "data.csv"
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], 'data.csv')
 
     try:
         with open(file_path, 'a', newline='') as csvfile:
@@ -191,5 +211,8 @@ def save_to_csv(subject, recipients):
             print(f"Data saved to CSV - Subject: {subject}, Recipients: {recipients}")
     except Exception as e:
         print(f"Error saving to CSV: {str(e)}")
+
+
 if __name__ == '__main__':
+    app.config['UPLOAD_FOLDER'] = 'uploads'
     app.run(debug=True)
